@@ -17,7 +17,7 @@ machine-code，是GO语言实现的跨平台机器码(硬件信息)获取程序�
 ### 二、安装说明
 
 ```
-$ go get github.com/super-l/machine-code
+$ go get github.com/super-l/machine-code/machine
 ```
 
 
