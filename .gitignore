@@ -1,0 +1,13 @@
+.idea
+*.log
+logs/
+urldb
+urldb.db
+*.zip
+*.exe
+release
+static
+driver
+build
+doc
+*.lock
