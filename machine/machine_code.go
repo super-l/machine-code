@@ -83,17 +83,20 @@ func GetMACAddress() (string, error){
 		return "", err
 	}
 	var mac string
+	var bakMac string
 	for i := 0; i < len(netInterfaces); i++ {
-		if (netInterfaces[i].Flags & net.FlagUp) != 0 && (netInterfaces[i].Flags & net.FlagLoopback) == 0{
-			addrs, _ := netInterfaces[i].Addrs()
-			for _, address := range addrs {
-				ipnet, ok := address.(*net.IPNet)
-				if  ok && ipnet.IP.IsGlobalUnicast() {
-					mac = netInterfaces[i].HardwareAddr.String()
-					return mac, nil
-				}
+		flags := netInterfaces[i].Flags.String()
+		if strings.Contains(flags, "up") && strings.Contains(flags, "broadcast") && !strings.Contains(flags, "loopback") {
+			if !strings.Contains(netInterfaces[i].Name, "VMware") {
+				mac = netInterfaces[i].HardwareAddr.String()
+				return mac, nil
+			} else {
+				bakMac = netInterfaces[i].HardwareAddr.String()
 			}
 		}
+	}
+	if mac == "" {
+		return bakMac, nil
 	}
 	return mac, errors.New("无法获取到正确的MAC地址")
 }
