@@ -1,25 +1,32 @@
 /*
 author: superl[N.S.T]
 github: https://github.com/super-l/
+desc: 获取windows操作系统的相关硬件基础编码信息
 */
-package machine
+package os
 
 import (
+	"github.com/super-l/machine-code/machine/types"
 	"os/exec"
 	"strings"
 )
 
-type WindowsMachine struct {}
+type WindowsMachine struct{}
 
-func (WindowsMachine) getMachine() MachineData {
-	machineData := MachineData{}
-	machineData.PlatformUUID , _ = GetPlatformUUID()
-	machineData.SerialNumber, _ = GetSerialNumber()
-	machineData.CpuId,_ = GetCpuId()
+func (i WindowsMachine) GetMachine() types.Information {
+	platformUUID, _ := i.GetPlatformUUID()
+	boardSerialNumber, _ := i.GetBoardSerialNumber()
+	cpuSerialNumber, _ := i.GetCpuSerialNumber()
+
+	machineData := types.Information{
+		PlatformUUID:      platformUUID,
+		BoardSerialNumber: boardSerialNumber,
+		CpuSerialNumber:   cpuSerialNumber,
+	}
 	return machineData
 }
 
-func (WindowsMachine) getSerialNumber() (serialNumber string, err error) {
+func (WindowsMachine) GetBoardSerialNumber() (serialNumber string, err error) {
 	// wmic baseboard get serialnumber
 	cmd := exec.Command("wmic", "baseboard", "get", "serialnumber")
 	b, e := cmd.CombinedOutput()
@@ -30,12 +37,12 @@ func (WindowsMachine) getSerialNumber() (serialNumber string, err error) {
 		serialNumber = strings.ReplaceAll(serialNumber, " ", "")
 		serialNumber = strings.ReplaceAll(serialNumber, "\r", "")
 	} else {
-		return "",nil
+		return "", nil
 	}
-	return serialNumber,nil
+	return serialNumber, nil
 }
 
-func (WindowsMachine) getPlatformUUID() (uuid string, err error) {
+func (WindowsMachine) GetPlatformUUID() (uuid string, err error) {
 	// wmic csproduct get uuid
 	var cmd *exec.Cmd
 	cmd = exec.Command("wmic", "csproduct", "get", "uuid")
@@ -48,12 +55,12 @@ func (WindowsMachine) getPlatformUUID() (uuid string, err error) {
 		uuid = strings.ReplaceAll(uuid, " ", "")
 		uuid = strings.ReplaceAll(uuid, "\r", "")
 	} else {
-		return "",nil
+		return "", nil
 	}
 	return uuid, nil
 }
 
-func (WindowsMachine) getCpuId() (cpuId string, err error) {
+func (WindowsMachine) GetCpuSerialNumber() (cpuId string, err error) {
 	// wmic cpu get processorid
 	var cpuid string
 	cmd := exec.Command("wmic", "cpu", "get", "processorid")
@@ -66,7 +73,7 @@ func (WindowsMachine) getCpuId() (cpuId string, err error) {
 		cpuid = strings.ReplaceAll(cpuid, " ", "")
 		cpuid = strings.ReplaceAll(cpuid, "\r", "")
 	} else {
-		return "",nil
+		return "", nil
 	}
 	return cpuid, nil
 }

@@ -2,27 +2,33 @@
 author: superl[N.S.T]
 github: https://github.com/super-l/
 */
-package machine
+package os
 
 import (
 	"bytes"
 	"errors"
+	"github.com/super-l/machine-code/machine/types"
 	"os"
 	"os/exec"
 	"strings"
 )
 
-type LinuxMachine struct {}
+type LinuxMachine struct{}
 
-func (LinuxMachine) getMachine() MachineData {
-	machineData := MachineData{}
-	machineData.PlatformUUID , _ = GetPlatformUUID()
-	machineData.SerialNumber, _ = GetSerialNumber()
-	machineData.CpuId,_ = GetCpuId()
+func (i LinuxMachine) GetMachine() types.Information {
+	platformUUID, _ := i.GetPlatformUUID()
+	boardSerialNumber, _ := i.GetBoardSerialNumber()
+	cpuSerialNumber, _ := i.GetCpuSerialNumber()
+
+	machineData := types.Information{
+		PlatformUUID:      platformUUID,
+		BoardSerialNumber: boardSerialNumber,
+		CpuSerialNumber:   cpuSerialNumber,
+	}
 	return machineData
 }
 
-func (LinuxMachine) getSerialNumber() (serialNumber string, err error) {
+func (LinuxMachine) GetBoardSerialNumber() (serialNumber string, err error) {
 	// dmidecode -s system-serial-number  序列号
 	var cmd *exec.Cmd
 	cmd = exec.Command("dmidecode", "-s", "system-serial-number")
@@ -45,7 +51,7 @@ func (LinuxMachine) getSerialNumber() (serialNumber string, err error) {
 	}
 }
 
-func (LinuxMachine) getPlatformUUID() (UUID string, err error) {
+func (LinuxMachine) GetPlatformUUID() (UUID string, err error) {
 	// dmidecode -s system-uuid           UUID
 	var cmd *exec.Cmd
 	cmd = exec.Command("dmidecode", "-s", "system-uuid")
@@ -68,10 +74,10 @@ func (LinuxMachine) getPlatformUUID() (UUID string, err error) {
 	}
 }
 
-func (LinuxMachine) getCpuId2() (cpuId string, err error) {
+func (LinuxMachine) GetCpuSerialNumber2() (cpuId string, err error) {
 	// dmidecode -t processor |grep ID |head -1
 	var cmd *exec.Cmd
-	cmd = exec.Command("dmidecode", "-t", "processor","|grep ID |head -1")
+	cmd = exec.Command("dmidecode", "-t", "processor", "|grep ID |head -1")
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -91,14 +97,14 @@ func (LinuxMachine) getCpuId2() (cpuId string, err error) {
 	}
 }
 
-func (LinuxMachine) getCpuId() (cpuId string, err error) {
+func (i LinuxMachine) GetCpuSerialNumber() (cpuId string, err error) {
 	// dmidecode -t processor |grep ID |head -1
 	cmds := []*exec.Cmd{
 		exec.Command("dmidecode", "-t", "processor"),
 		exec.Command("grep", "ID"),
 		exec.Command("head", "-1"),
 	}
-	cpuId, err = ExecPipeLine(cmds...)
+	cpuId, err = i.execPipeLine(cmds...)
 	cpuId = strings.TrimSpace(cpuId)
 	cpuId = strings.Replace(cpuId, "ID: ", "", -1)
 	cpuId = strings.Replace(cpuId, "\t", "", -1)
@@ -107,7 +113,7 @@ func (LinuxMachine) getCpuId() (cpuId string, err error) {
 	return
 }
 
-func Pipeline(cmds ...*exec.Cmd) (pipeLineOutput, collectedStandardError []byte, pipeLineError error) {
+func (LinuxMachine) pipeline(cmds ...*exec.Cmd) (pipeLineOutput, collectedStandardError []byte, pipeLineError error) {
 	if len(cmds) < 1 {
 		return nil, nil, nil
 	}
@@ -141,8 +147,8 @@ func Pipeline(cmds ...*exec.Cmd) (pipeLineOutput, collectedStandardError []byte,
 	return output.Bytes(), stderr.Bytes(), nil
 }
 
-func ExecPipeLine(cmds ...*exec.Cmd) (string, error) {
-	output, stderr, err := Pipeline(cmds...)
+func (i LinuxMachine) execPipeLine(cmds ...*exec.Cmd) (string, error) {
+	output, stderr, err := i.pipeline(cmds...)
 	if err != nil {
 		return "", err
 	}
@@ -156,4 +162,3 @@ func ExecPipeLine(cmds ...*exec.Cmd) (string, error) {
 	}
 	return "", errors.New("no returns")
 }
-

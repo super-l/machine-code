@@ -1,115 +1,129 @@
 /*
 author: superl[N.S.T]
 github: https://github.com/super-l/
+desc: 获取操作系统的相关硬件基础编码信息
 */
 package machine
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"errors"
+	"github.com/super-l/machine-code/machine/os"
+	"github.com/super-l/machine-code/machine/types"
 	"net"
 	"runtime"
 	"strings"
 )
 
-type MachineData struct {
-	PlatformUUID  string  `json:"platformUUID"`
-	SerialNumber  string  `json:"serialNumber"`
-	CpuId		  string  `json:"cpuId"`
-	Mac           string  `json:"mac"`
-}
-
-func GetMachineData() (data MachineData){
+func GetMachineData() (data types.Information) {
+	var osMachine OsMachineInterface
 	if runtime.GOOS == "darwin" {
-		sysInfo, _ := MacMachine{}.getMacSysInfo()
-		sysInfo.Mac, _ = GetMACAddress()
-		return sysInfo
+		osMachine = os.MacMachine{}
 	} else if runtime.GOOS == "linux" {
-		machineData := MachineData{}
-		machineData.SerialNumber, _ = LinuxMachine{}.getSerialNumber()
-		machineData.PlatformUUID, _ = LinuxMachine{}.getPlatformUUID()
-		machineData.CpuId, _ = LinuxMachine{}.getCpuId()
-		machineData.Mac, _ = GetMACAddress()
-		return machineData
-	}else if runtime.GOOS == "windows" {
-		machineData := MachineData{}
-		machineData.SerialNumber, _ = WindowsMachine{}.getSerialNumber()
-		machineData.PlatformUUID, _ = WindowsMachine{}.getPlatformUUID()
-		machineData.CpuId, _ = WindowsMachine{}.getCpuId()
-		machineData.Mac, _ = GetMACAddress()
-		return machineData
-	}
-	return MachineData{}
-}
-
-func GetSerialNumber() (data string, err error ){
-	if runtime.GOOS == "darwin" {
-		return MacMachine{}.getSerialNumber()
-	} else if runtime.GOOS == "linux" {
-		return LinuxMachine{}.getSerialNumber()
+		osMachine = os.LinuxMachine{}
 	} else if runtime.GOOS == "windows" {
-		return WindowsMachine{}.getSerialNumber()
+		osMachine = os.WindowsMachine{}
 	}
-	return "",nil
+	var machineData = osMachine.GetMachine()
+	machineData.LocalMacInfo, _ = GetMACAddress()
+	return machineData
 }
 
-func GetPlatformUUID() (data string, err error ){
+func GetBoardSerialNumber() (data string, err error) {
+	var osMachine OsMachineInterface
 	if runtime.GOOS == "darwin" {
-		return MacMachine{}.getPlatformUUID()
+		osMachine = os.MacMachine{}
 	} else if runtime.GOOS == "linux" {
-		return LinuxMachine{}.getPlatformUUID()
+		osMachine = os.LinuxMachine{}
 	} else if runtime.GOOS == "windows" {
-		return WindowsMachine{}.getPlatformUUID()
+		osMachine = os.WindowsMachine{}
 	}
-	return "",nil
+	return osMachine.GetBoardSerialNumber()
 }
 
-
-func GetCpuId() (data string, err error ){
+func GetPlatformUUID() (data string, err error) {
+	var osMachine OsMachineInterface
 	if runtime.GOOS == "darwin" {
-		return MacMachine{}.getCpuId()
+		osMachine = os.MacMachine{}
 	} else if runtime.GOOS == "linux" {
-		return LinuxMachine{}.getCpuId()
+		osMachine = os.LinuxMachine{}
 	} else if runtime.GOOS == "windows" {
-		return WindowsMachine{}.getCpuId()
+		osMachine = os.WindowsMachine{}
 	}
-	return "",nil
+	return osMachine.GetPlatformUUID()
 }
 
-func GetMACAddress() (string, error){
+func GetCpuSerialNumber() (data string, err error) {
+	var osMachine OsMachineInterface
+	if runtime.GOOS == "darwin" {
+		osMachine = os.MacMachine{}
+	} else if runtime.GOOS == "linux" {
+		osMachine = os.LinuxMachine{}
+	} else if runtime.GOOS == "windows" {
+		osMachine = os.WindowsMachine{}
+	}
+	return osMachine.GetCpuSerialNumber()
+}
+
+func GetMACAddress() (string, error) {
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
 	}
 	var mac string
-	var bakMac string
+	var bakMac1 string
+	var bakMac2 string
+
 	for i := 0; i < len(netInterfaces); i++ {
 		flags := netInterfaces[i].Flags.String()
-		if strings.Contains(flags, "up") && strings.Contains(flags, "broadcast") && !strings.Contains(flags, "loopback") {
-			if !strings.Contains(netInterfaces[i].Name, "VMware") {
+
+		if strings.Contains(flags, "up") &&
+			strings.Contains(flags, "broadcast") &&
+			strings.Contains(flags, "running") &&
+			!strings.Contains(flags, "loopback") {
+
+			//fmt.Println(fmt.Sprintf("i:%d name:%s %v", i, netInterfaces[i].Name, flags))
+			if strings.Contains(netInterfaces[i].Name, "WLAN") {
 				mac = netInterfaces[i].HardwareAddr.String()
 				return mac, nil
+			}
+			if !strings.Contains(netInterfaces[i].Name, "VMware") {
+				bakMac1 = netInterfaces[i].HardwareAddr.String()
 			} else {
-				bakMac = netInterfaces[i].HardwareAddr.String()
+				bakMac2 = netInterfaces[i].HardwareAddr.String()
 			}
 		}
 	}
 	if mac == "" {
-		return bakMac, nil
+		if bakMac1 != "" {
+			return bakMac1, nil
+		}
+		return bakMac2, nil
 	}
-	return mac, errors.New("无法获取到正确的MAC地址")
+	return mac, errors.New("unable to get the correct MAC address")
 }
 
-func GetMd5String(s string, upper bool, half bool) string {
-	h := md5.New()
-	h.Write([]byte(s))
-	result := hex.EncodeToString(h.Sum(nil))
-	if upper == true {
-		result = strings.ToUpper(result)
+func GetLocalIpAddr() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:53")
+	if err != nil {
+		return "", err
 	}
-	if half == true {
-		result = result[8:24]
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	ip := strings.Split(localAddr.String(), ":")[0]
+	return ip, nil
+}
+
+func GetIpAddrAll() ([]string, error) {
+	var ipList []string
+	addrList, err := net.InterfaceAddrs()
+	if err != nil {
+		return ipList, err
 	}
-	return result
+	for _, address := range addrList {
+		if ipNet, ok := address.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && !ipNet.IP.IsLinkLocalUnicast() {
+			if ipNet.IP.To4() != nil {
+				ipList = append(ipList, ipNet.IP.To4().String())
+			}
+		}
+	}
+	return ipList, nil
 }
