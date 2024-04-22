@@ -29,6 +29,7 @@ func (i WindowsMachine) GetMachine() types.Information {
 func (WindowsMachine) GetBoardSerialNumber() (serialNumber string, err error) {
 	// wmic baseboard get serialnumber
 	cmd := exec.Command("wmic", "baseboard", "get", "serialnumber")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	b, e := cmd.CombinedOutput()
 	if e == nil {
 		serialNumber = string(b)
@@ -46,6 +47,7 @@ func (WindowsMachine) GetPlatformUUID() (uuid string, err error) {
 	// wmic csproduct get uuid
 	var cmd *exec.Cmd
 	cmd = exec.Command("wmic", "csproduct", "get", "uuid")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	b, e := cmd.CombinedOutput()
 
 	if e == nil {
@@ -64,6 +66,7 @@ func (WindowsMachine) GetCpuSerialNumber() (cpuId string, err error) {
 	// wmic cpu get processorid
 	var cpuid string
 	cmd := exec.Command("wmic", "cpu", "get", "processorid")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	b, e := cmd.CombinedOutput()
 
 	if e == nil {
