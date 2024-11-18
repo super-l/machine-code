@@ -12,6 +12,7 @@ import (
 	"net"
 	"runtime"
 	"strings"
+
 )
 
 func GetMachineData() (data types.Information) {
@@ -81,12 +82,12 @@ func GetMACAddress() (string, error) {
 			strings.Contains(flags, "running") &&
 			!strings.Contains(flags, "loopback") {
 
-			//fmt.Println(fmt.Sprintf("i:%d name:%s %v", i, netInterfaces[i].Name, flags))
+			// fmt.Println(fmt.Sprintf("i:%d name:%s %v", i, netInterfaces[i].Name, flags))
 			if strings.Contains(netInterfaces[i].Name, "WLAN") {
 				mac = netInterfaces[i].HardwareAddr.String()
 				return mac, nil
 			}
-			if !strings.Contains(netInterfaces[i].Name, "VMware") {
+			if !strings.Contains(netInterfaces[i].Name, "VMware") && !strings.Contains(netInterfaces[i].Name, "WSL") {
 				bakMac1 = netInterfaces[i].HardwareAddr.String()
 			} else {
 				bakMac2 = netInterfaces[i].HardwareAddr.String()
