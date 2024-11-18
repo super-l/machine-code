@@ -5,6 +5,8 @@ package goos
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/super-l/machine-code/types"
@@ -102,7 +104,7 @@ func (linux LinuxMachine) GetDiskSerialNumber() (serialNumber string, err error)
 	if err1 != nil && err2 != nil {
 		return "", err1
 	}
-	return fmt.Sprintf("id:%s uuid%s", id, uuid), nil
+	return fmt.Sprintf("id:%s uuid_md5:%s", id, uuid), nil
 }
 
 // 获取硬盘编号
@@ -162,7 +164,13 @@ func (linux LinuxMachine) GetDiskSerialNumberByUUID() (string, error) {
 	if len(result) == 0 {
 		return "", errors.New(fmt.Sprintf("no data"))
 	}
-	return strings.Join(result, "|"), nil
+
+	idListStr := strings.Join(result, "|")
+	s := md5.New()
+	s.Write([]byte(idListStr))
+	md5Result := hex.EncodeToString(s.Sum(nil))
+
+	return md5Result, nil
 }
 
 // 设备唯一UUID
