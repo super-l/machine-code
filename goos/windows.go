@@ -4,6 +4,7 @@
 package goos
 
 import (
+	"errors"
 	"fmt"
 	"github.com/super-l/machine-code/types"
 	"os/exec"
@@ -13,29 +14,31 @@ import (
 
 type WindowsMachine struct{}
 
-func (w WindowsMachine) GetMachine() (res types.MachineInformation, err error) {
+func (w WindowsMachine) GetMachine() (types.MachineInformation, []error) {
+	var errs []error
+
 	platformUUID, err := w.GetUUID()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 	boardSerialNumber, err := w.GetBoardSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	cpuSerialNumber, err := w.GetCpuSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	diskSerialNumber, err := w.GetDiskSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	macAddr, err := GetMACAddress()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	machineData := types.MachineInformation{
@@ -45,29 +48,28 @@ func (w WindowsMachine) GetMachine() (res types.MachineInformation, err error) {
 		DiskSerialNumber:  diskSerialNumber,
 		Mac:               macAddr,
 	}
-	return machineData, nil
+	return machineData, errs
 }
 
 // 获取主板编号
-func (WindowsMachine) GetBoardSerialNumber() (serialNumber string, err error) {
+func (WindowsMachine) GetBoardSerialNumber() (string, error) {
 	cmd := exec.Command("wmic", "baseboard", "get", "serialnumber")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // @bestK 提交
-	b, e := cmd.CombinedOutput()
-	if e == nil {
-		serialNumber = string(b)
+	b, err := cmd.CombinedOutput()
+	if err == nil {
+		serialNumber := string(b)
 		serialNumber = serialNumber[12 : len(serialNumber)-2]
 		serialNumber = strings.ReplaceAll(serialNumber, "\n", "")
 		serialNumber = strings.ReplaceAll(serialNumber, " ", "")
 		serialNumber = strings.ReplaceAll(serialNumber, "\r", "")
-	} else {
-		return "", nil
+		return serialNumber, nil
 	}
-	return serialNumber, nil
+	return "", err
 }
 
 // 获取硬盘编号
 func (WindowsMachine) GetDiskSerialNumber() (serialNumber string, err error) {
-	cmd := exec.Command("cmd", "/C", "wmic diskdrive get serialnumber")
+	cmd := exec.Command("wmic", "diskdrive", "get", "serialnumber")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // @bestK 提交
 	output, err := cmd.Output()
 	if err != nil {
@@ -78,27 +80,27 @@ func (WindowsMachine) GetDiskSerialNumber() (serialNumber string, err error) {
 	if len(lines) > 1 {
 		return strings.TrimSpace(lines[1]), nil
 	}
-	return "", fmt.Errorf("no serial number found")
+	return "", fmt.Errorf("diskdrive serial number not found")
 }
 
 // 获取系统UUID
-func (WindowsMachine) GetUUID() (uuid string, err error) {
+func (WindowsMachine) GetUUID() (string, error) {
 	// wmic csproduct get uuid   ||  wmic csproduct list full | findstr UUID
 	var cmd *exec.Cmd
 	cmd = exec.Command("wmic", "csproduct", "get", "uuid")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // @bestK 提交
-	b, e := cmd.CombinedOutput()
+	b, err := cmd.CombinedOutput()
 
-	if e == nil {
+	var uuid string
+	if err == nil {
 		uuid = string(b)
 		uuid = uuid[4 : len(uuid)-1]
 		uuid = strings.ReplaceAll(uuid, "\n", "")
 		uuid = strings.ReplaceAll(uuid, " ", "")
 		uuid = strings.ReplaceAll(uuid, "\r", "")
-	} else {
-		return "", nil
+		return uuid, nil
 	}
-	return uuid, nil
+	return "", errors.New("csproduct uuid not found")
 }
 
 // 获取CPU序列号
@@ -108,13 +110,13 @@ func (WindowsMachine) GetCpuSerialNumber() (string, error) {
 	cmd := exec.Command("wmic", "cpu", "get", "processorid")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} // @bestK 提交
 	b, err := cmd.CombinedOutput()
-
 	if err == nil {
 		cpuid = string(b)
 		cpuid = cpuid[12 : len(cpuid)-2]
 		cpuid = strings.ReplaceAll(cpuid, "\n", "")
 		cpuid = strings.ReplaceAll(cpuid, " ", "")
 		cpuid = strings.ReplaceAll(cpuid, "\r", "")
+		return cpuid, err
 	}
-	return cpuid, err
+	return "", errors.New("cpu processorid not found")
 }

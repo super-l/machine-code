@@ -21,29 +21,31 @@ type LinuxMachine struct{}
 const DiskByIDPath = "/dev/disk/by-id/"
 const DiskByUUIDPath = "/dev/disk/by-uuid/"
 
-func (linux LinuxMachine) GetMachine() (res types.MachineInformation, err error) {
+func (linux LinuxMachine) GetMachine() (types.MachineInformation, []error) {
+	var errs []error
+
 	platformUUID, err := linux.GetUUID()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 	boardSerialNumber, err := linux.GetBoardSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	cpuSerialNumber, err := linux.GetCpuSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	diskSerialNumber, err := linux.GetDiskSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	macAddr, err := GetMACAddress()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	machineData := types.MachineInformation{
@@ -53,7 +55,7 @@ func (linux LinuxMachine) GetMachine() (res types.MachineInformation, err error)
 		DiskSerialNumber:  diskSerialNumber,
 		Mac:               macAddr,
 	}
-	return machineData, nil
+	return machineData, errs
 }
 
 // 主板序列码
@@ -74,9 +76,8 @@ func (linux LinuxMachine) GetBoardSerialNumber() (serialNumber string, err error
 		serial_number := out.String()
 		serial_number = strings.Replace(serial_number, "\n", "", -1)
 		return serial_number, nil
-	} else {
-		return "", err
 	}
+	return "", err
 }
 
 // CPU序列码
@@ -135,7 +136,7 @@ func (linux LinuxMachine) GetDiskSerialNumberById() (serialNumber string, err er
 		}
 	}
 	if serialNumber == "" {
-		return "", errors.New("no data")
+		return "", errors.New("disk id serial number not found")
 	}
 	return serialNumber, nil
 }
@@ -145,7 +146,7 @@ func (linux LinuxMachine) GetDiskSerialNumberByUUID() (string, error) {
 	var result []string
 	entries, err := os.ReadDir(DiskByUUIDPath)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error reading disk directory:", err))
+		return "", errors.New(fmt.Sprintf("error reading disk directory:", err))
 	}
 
 	for _, entry := range entries {
@@ -162,7 +163,7 @@ func (linux LinuxMachine) GetDiskSerialNumberByUUID() (string, error) {
 	}
 
 	if len(result) == 0 {
-		return "", errors.New(fmt.Sprintf("no data"))
+		return "", errors.New("disk uuid serial number not found")
 	}
 
 	idListStr := strings.Join(result, "|")
@@ -191,9 +192,8 @@ func (linux LinuxMachine) GetUUID() (UUID string, err error) {
 		uuid := out.String()
 		uuid = strings.Replace(uuid, "\n", "", -1)
 		return uuid, nil
-	} else {
-		return "", err
 	}
+	return "", err
 }
 
 func (linux LinuxMachine) GetCpuSerialNumber2() (cpuId string, err error) {
@@ -214,9 +214,8 @@ func (linux LinuxMachine) GetCpuSerialNumber2() (cpuId string, err error) {
 		uuid := out.String()
 		//uuid = strings.Replace(uuid, "\n", "", -1)
 		return uuid, nil
-	} else {
-		return "", err
 	}
+	return "", err
 }
 
 func (LinuxMachine) pipeline(cmds ...*exec.Cmd) (pipeLineOutput, collectedStandardError []byte, pipeLineError error) {

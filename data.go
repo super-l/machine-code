@@ -7,7 +7,7 @@ import (
 )
 
 var Machine types.MachineInformation
-var MachineErr error
+var MachineErr []error
 
 // Obtain accurate export traffic IP information
 func GetIpAddr() (string, error) {

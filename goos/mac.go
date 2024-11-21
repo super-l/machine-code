@@ -6,7 +6,6 @@ package goos
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"github.com/super-l/machine-code/types"
 	"os"
 	"os/exec"
@@ -43,29 +42,31 @@ type macDictItemStruct struct {
 	String  []string `xml:"string"`
 }
 
-func (mac MacMachine) GetMachine() (res types.MachineInformation, err error) {
+func (mac MacMachine) GetMachine() (types.MachineInformation, []error) {
+	var errs []error
+
 	platformUUID, err := mac.GetUUID()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 	boardSerialNumber, err := mac.GetBoardSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	cpuSerialNumber, err := mac.GetCpuSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	diskSerialNumber, err := mac.GetDiskSerialNumber()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	macAddr, err := GetMACAddress()
 	if err != nil {
-		return res, err
+		errs = append(errs, err)
 	}
 
 	machineData := types.MachineInformation{
@@ -75,7 +76,7 @@ func (mac MacMachine) GetMachine() (res types.MachineInformation, err error) {
 		DiskSerialNumber:  diskSerialNumber,
 		Mac:               macAddr,
 	}
-	return machineData, nil
+	return machineData, errs
 }
 
 func (mac MacMachine) GetBoardSerialNumber() (data string, err error) {
@@ -104,24 +105,7 @@ func (mac MacMachine) GetCpuSerialNumber() (cpuId string, err error) {
 
 // 获取硬盘编号
 func (mac MacMachine) GetDiskSerialNumber() (serialNumber string, err error) {
-	// lsblk --nodeps -no serial /dev/sda
-	var cmd *exec.Cmd
-	cmd = exec.Command("lsblk", "--nodeps", "-no", "serial", "/dev/sda")
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = os.Stderr
-
-	err = cmd.Start()
-	if err != nil {
-		return "", err
-	}
-	err = cmd.Wait()
-	if err == nil {
-		return out.String(), nil
-	} else {
-		return "", err
-	}
+	return "xxx", nil
 }
 
 func (mac MacMachine) GetMacSysInfo() (data types.MachineInformation, err error) {
@@ -134,8 +118,7 @@ func (mac MacMachine) GetMacSysInfo() (data types.MachineInformation, err error)
 
 	err = cmd.Start()
 	if err != nil {
-		fmt.Println(err.Error())
-		return
+		return types.MachineInformation{}, err
 	}
 
 	err = cmd.Wait()
@@ -145,9 +128,8 @@ func (mac MacMachine) GetMacSysInfo() (data types.MachineInformation, err error)
 			macMachineData.CpuSerialNumber, _ = mac.getCpuSerialNumberBase()
 		}
 		return macMachineData, nil
-	} else {
-		return types.MachineInformation{}, err
 	}
+	return types.MachineInformation{}, err
 }
 
 func (MacMachine) macXmlToData(xmlcontent string) (types.MachineInformation, error) {
@@ -155,15 +137,14 @@ func (MacMachine) macXmlToData(xmlcontent string) (types.MachineInformation, err
 	err := xml.Unmarshal([]byte(xmlcontent), &x)
 	if err != nil {
 		return types.MachineInformation{}, err
-	} else {
-		count := len(x.Array.Dict.Array.Dict.String)
-		serialData := types.MachineInformation{
-			UUID:              x.Array.Dict.Array.Dict.String[count-2],
-			BoardSerialNumber: x.Array.Dict.Array.Dict.String[count-1],
-			CpuSerialNumber:   "",
-		}
-		return serialData, nil
 	}
+	count := len(x.Array.Dict.Array.Dict.String)
+	serialData := types.MachineInformation{
+		UUID:              x.Array.Dict.Array.Dict.String[count-2],
+		BoardSerialNumber: x.Array.Dict.Array.Dict.String[count-1],
+		CpuSerialNumber:   "",
+	}
+	return serialData, nil
 }
 
 func (mac MacMachine) getCpuSerialNumberBase() (cpuId string, err error) {
@@ -186,7 +167,6 @@ func (mac MacMachine) getCpuSerialNumberBase() (cpuId string, err error) {
 		cpuId = strings.Replace(cpuId, "\n", "", -1)
 		cpuId = strings.Replace(cpuId, "machdep.cpu.signature:", "", -1)
 		return cpuId, nil
-	} else {
-		return "", err
 	}
+	return "", err
 }
